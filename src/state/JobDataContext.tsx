@@ -1,16 +1,32 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   applications as initialApplications,
   companies,
   people as initialPeople,
+  employment as initialEmployment,
   events as initialEvents,
   conversations as initialConversations,
   summary as initialSummary,
   resolveCompanyId,
   findCompany,
 } from '../mocks/job'
-import type { Application, ApplicationState, AppEvent, ChatMessage, Conversation, Person, SummarySettings } from '../types/job'
+import { STATE_LABEL, stateChipLabel } from '../lib/applicationState'
+import { saveSummarySnapshot } from '../lib/summaryStorage'
+import type { PublicSummaryEntry } from '../lib/summaryStorage'
+import type {
+  Application,
+  ApplicationOutcome,
+  ApplicationState,
+  AppEvent,
+  ChatMessage,
+  Conversation,
+  Employment,
+  Person,
+  SummarySettings,
+} from '../types/job'
+
+export const ME = 'me'
 
 interface NewApplicationInput {
   companyName: string
@@ -30,18 +46,23 @@ interface JobDataValue {
   applications: Application[]
   companies: typeof companies
   people: Person[]
+  employment: Employment[]
   events: AppEvent[]
   conversations: Conversation[]
   summary: SummarySettings
+  summaryEntries: PublicSummaryEntry[]
   resolveCompanyId: typeof resolveCompanyId
   findCompany: typeof findCompany
   addApplication: (input: NewApplicationInput) => void
   setApplicationState: (id: string, state: ApplicationState) => void
+  setApplicationOutcome: (id: string, outcome: ApplicationOutcome) => void
   setApplicationNotes: (id: string, notes: string) => void
   logManualEvent: (applicationId: string, text: string) => void
   addFriend: (personId: string) => void
   sendMessage: (personId: string, text: string) => void
   updateSummary: (patch: Partial<SummarySettings>) => void
+  addEmployment: (applicationId: string, startDate: string) => void
+  setEmploymentEndDate: (employmentId: string, endDate: string) => void
 }
 
 const JobDataContext = createContext<JobDataValue | null>(null)
@@ -49,12 +70,14 @@ const JobDataContext = createContext<JobDataValue | null>(null)
 export function JobDataProvider({ children }: { children: ReactNode }) {
   const [applications, setApplications] = useState<Application[]>(initialApplications)
   const [people, setPeople] = useState<Person[]>(initialPeople)
+  const [employment, setEmployment] = useState<Employment[]>(initialEmployment)
   const [events, setEvents] = useState<AppEvent[]>(initialEvents)
   const [conversations, setConversations] = useState<Conversation[]>(initialConversations)
   const [summary, setSummary] = useState<SummarySettings>(initialSummary)
   const eventIdCounter = useRef(initialEvents.length)
   const appIdCounter = useRef(initialApplications.length)
   const msgIdCounter = useRef(0)
+  const employmentIdCounter = useRef(initialEmployment.length)
 
   const logManualEvent = useCallback((applicationId: string, text: string) => {
     eventIdCounter.current += 1
@@ -94,8 +117,18 @@ export function JobDataProvider({ children }: { children: ReactNode }) {
 
   const setApplicationState = useCallback(
     (id: string, state: ApplicationState) => {
-      setApplications((prev) => prev.map((app) => (app.id === id ? { ...app, state } : app)))
-      logManualEvent(id, `Status changed to "${state}"`)
+      setApplications((prev) =>
+        prev.map((app) => (app.id === id ? { ...app, state, outcome: state === 'result' ? app.outcome : undefined } : app)),
+      )
+      logManualEvent(id, `Status changed to "${STATE_LABEL[state]}"`)
+    },
+    [logManualEvent],
+  )
+
+  const setApplicationOutcome = useCallback(
+    (id: string, outcome: ApplicationOutcome) => {
+      setApplications((prev) => prev.map((app) => (app.id === id ? { ...app, outcome } : app)))
+      logManualEvent(id, `Outcome set to "${outcome === 'offer' ? 'Offer' : 'Rejected'}"`)
     },
     [logManualEvent],
   )
@@ -106,6 +139,30 @@ export function JobDataProvider({ children }: { children: ReactNode }) {
 
   const addFriend = useCallback((personId: string) => {
     setPeople((prev) => prev.map((person) => (person.id === personId ? { ...person, isFriend: true } : person)))
+  }, [])
+
+  const addEmployment = useCallback(
+    (applicationId: string, startDate: string) => {
+      const application = applications.find((app) => app.id === applicationId)
+      const companyId = application ? resolveCompanyId(application.companyName) : undefined
+      if (!application || !companyId) return
+      employmentIdCounter.current += 1
+      setEmployment((prev) => [
+        ...prev,
+        {
+          id: `emp-new-${employmentIdCounter.current}`,
+          personId: ME,
+          companyId,
+          applicationId,
+          startDate,
+        },
+      ])
+    },
+    [applications],
+  )
+
+  const setEmploymentEndDate = useCallback((employmentId: string, endDate: string) => {
+    setEmployment((prev) => prev.map((entry) => (entry.id === employmentId ? { ...entry, endDate } : entry)))
   }, [])
 
   const sendMessage = useCallback((personId: string, text: string) => {
@@ -141,25 +198,72 @@ export function JobDataProvider({ children }: { children: ReactNode }) {
     setSummary((prev) => ({ ...prev, ...patch }))
   }, [])
 
+  const summaryEntries = useMemo<PublicSummaryEntry[]>(() => {
+    const filtered =
+      summary.filter === 'offers' ? applications.filter((app) => app.state === 'result' && app.outcome === 'offer') : applications
+    return filtered.map((app) => {
+      const companyId = resolveCompanyId(app.companyName)
+      const canonicalName = companyId ? (findCompany(companyId)?.name ?? app.companyName) : app.companyName
+      return {
+        role: app.role,
+        companyName: summary.includeCompanies ? canonicalName : undefined,
+        stateLabel: summary.includeStates ? stateChipLabel(app) : undefined,
+        notes: summary.includeNotes && app.notes ? app.notes : undefined,
+      }
+    })
+  }, [applications, summary.filter, summary.includeCompanies, summary.includeStates, summary.includeNotes])
+
+  useEffect(() => {
+    if (!summary.published) return
+    saveSummarySnapshot(summary.linkToken, {
+      token: summary.linkToken,
+      revoked: summary.revoked,
+      entries: summaryEntries,
+    })
+  }, [summary.published, summary.linkToken, summary.revoked, summaryEntries])
+
   const value = useMemo<JobDataValue>(
     () => ({
       applications,
       companies,
       people,
+      employment,
       events,
       conversations,
       summary,
+      summaryEntries,
       resolveCompanyId,
       findCompany,
       addApplication,
       setApplicationState,
+      setApplicationOutcome,
       setApplicationNotes,
       logManualEvent,
       addFriend,
       sendMessage,
       updateSummary,
+      addEmployment,
+      setEmploymentEndDate,
     }),
-    [applications, people, events, conversations, summary, addApplication, setApplicationState, setApplicationNotes, logManualEvent, addFriend, sendMessage, updateSummary],
+    [
+      applications,
+      people,
+      employment,
+      events,
+      conversations,
+      summary,
+      summaryEntries,
+      addApplication,
+      setApplicationState,
+      setApplicationOutcome,
+      setApplicationNotes,
+      logManualEvent,
+      addFriend,
+      sendMessage,
+      updateSummary,
+      addEmployment,
+      setEmploymentEndDate,
+    ],
   )
 
   return <JobDataContext.Provider value={value}>{children}</JobDataContext.Provider>
