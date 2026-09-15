@@ -5,7 +5,7 @@ export const summary: SummarySettings = {
   includeNotes: false,
   includeStates: true,
   includeCompanies: true,
-  expiresAt: '2026-10-15',
+  filter: 'all',
   linkToken: 'a1b2c3d4',
   revoked: false,
 }

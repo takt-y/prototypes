@@ -1,4 +1,6 @@
-export type ApplicationState = 'applied' | 'interviewing' | 'closed'
+export type ApplicationState = 'applied' | 'in-process' | 'result'
+
+export type ApplicationOutcome = 'offer' | 'rejected'
 
 export type EventSource = 'manual' | 'email' | 'extension'
 
@@ -9,6 +11,7 @@ export interface Application {
   link: string
   notes: string
   state: ApplicationState
+  outcome?: ApplicationOutcome
   cvVersion: string
   createdAt: string
 }
@@ -25,6 +28,15 @@ export interface Person {
   companyId: string
   openToReferrals: boolean
   isFriend: boolean
+}
+
+export interface Employment {
+  id: string
+  personId: string
+  companyId: string
+  applicationId?: string
+  startDate: string
+  endDate?: string
 }
 
 export interface AppEvent {
@@ -48,12 +60,14 @@ export interface Conversation {
   messages: ChatMessage[]
 }
 
+export type SummaryFilter = 'all' | 'offers'
+
 export interface SummarySettings {
   published: boolean
   includeNotes: boolean
   includeStates: boolean
   includeCompanies: boolean
-  expiresAt: string
+  filter: SummaryFilter
   linkToken: string
   revoked: boolean
 }

@@ -1,6 +1,7 @@
 export { applications } from './applications'
 export { companies, resolveCompanyId, findCompany } from './companies'
 export { people } from './people'
+export { employment } from './employment'
 export { events } from './events'
 export { conversations } from './conversations'
 export { summary } from './summary'
