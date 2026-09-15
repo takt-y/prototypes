@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useJobData } from '../../state/JobDataContext'
 import { Chip } from '../../components/Chip'
@@ -28,11 +28,6 @@ export default function ApplicationDetail() {
   const { applications, events, resolveCompanyId, setApplicationState, setApplicationNotes } = useJobData()
   const navigate = useNavigate()
   const application = applications.find((app) => app.id === id)
-  const [notes, setNotes] = useState(application?.notes ?? '')
-
-  useEffect(() => {
-    setNotes(application?.notes ?? '')
-  }, [application?.id, application?.notes])
 
   if (!application) {
     return (
@@ -77,16 +72,12 @@ export default function ApplicationDetail() {
             ) : null}
           </p>
 
-          <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-            <h2 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Notes</h2>
-            <textarea
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              onBlur={() => setApplicationNotes(application.id, notes)}
-              rows={4}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
-            />
-          </div>
+          <NotesEditor
+            key={application.id}
+            applicationId={application.id}
+            initialNotes={application.notes}
+            onSave={setApplicationNotes}
+          />
 
           <h2 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Event timeline</h2>
           <ul className="flex flex-col gap-2">
@@ -139,6 +130,31 @@ export default function ApplicationDetail() {
           ) : null}
         </aside>
       </div>
+    </div>
+  )
+}
+
+function NotesEditor({
+  applicationId,
+  initialNotes,
+  onSave,
+}: {
+  applicationId: string
+  initialNotes: string
+  onSave: (id: string, notes: string) => void
+}) {
+  const [notes, setNotes] = useState(initialNotes)
+
+  return (
+    <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+      <h2 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Notes</h2>
+      <textarea
+        value={notes}
+        onChange={(event) => setNotes(event.target.value)}
+        onBlur={() => onSave(applicationId, notes)}
+        rows={4}
+        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
+      />
     </div>
   )
 }

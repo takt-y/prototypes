@@ -42,11 +42,12 @@ export default function Dashboard() {
       totals.set(entry.date, (totals.get(entry.date) ?? 0) + entry.hours)
     }
     const sortedDates = [...totals.keys()].sort()
-    let running = 0
-    return sortedDates.map((date) => {
-      running += totals.get(date) ?? 0
-      return { date, hours: totals.get(date) ?? 0, cumulative: running }
-    })
+    return sortedDates.reduce<{ date: string; hours: number; cumulative: number }[]>((acc, date) => {
+      const hours = totals.get(date) ?? 0
+      const previous = acc.at(-1)?.cumulative ?? 0
+      acc.push({ date, hours, cumulative: previous + hours })
+      return acc
+    }, [])
   }, [timeEntries])
 
   return (
