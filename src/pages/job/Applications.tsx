@@ -3,29 +3,9 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useJobData } from '../../state/JobDataContext'
 import { Chip } from '../../components/Chip'
-import type { ChipTone } from '../../components/Chip'
 import { Modal } from '../../components/Modal'
-import type { Application, ApplicationState } from '../../types/job'
-
-const STATE_LABEL: Record<ApplicationState, string> = {
-  applied: 'Applied',
-  interviewing: 'Interviewing',
-  closed: 'Closed',
-}
-
-const STATE_TONE: Record<ApplicationState, ChipTone> = {
-  applied: 'blue',
-  interviewing: 'amber',
-  closed: 'slate',
-}
-
-function closedTone(app: Application): ChipTone {
-  if (app.state !== 'closed') return STATE_TONE[app.state]
-  const notes = app.notes.toLowerCase()
-  if (notes.includes('offer')) return 'green'
-  if (notes.includes('reject')) return 'red'
-  return 'slate'
-}
+import { STATE_LABEL, stateChipLabel, stateChipTone } from '../../lib/applicationState'
+import type { ApplicationState } from '../../types/job'
 
 export default function Applications() {
   const { applications, people, resolveCompanyId, addApplication } = useJobData()
@@ -77,9 +57,11 @@ export default function Applications() {
           className="rounded-md border border-slate-300 px-3 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900"
         >
           <option value="all">All states</option>
-          <option value="applied">Applied</option>
-          <option value="interviewing">Interviewing</option>
-          <option value="closed">Closed</option>
+          {Object.entries(STATE_LABEL).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -117,7 +99,7 @@ export default function Applications() {
                     </Link>
                   </td>
                   <td className="px-4 py-2.5">
-                    <Chip tone={closedTone(app)}>{STATE_LABEL[app.state]}</Chip>
+                    <Chip tone={stateChipTone(app)}>{stateChipLabel(app)}</Chip>
                   </td>
                   <td className="max-w-64 truncate px-4 py-2.5 text-slate-500 dark:text-slate-400" title={app.notes}>
                     {app.notes}

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useJobData } from '../../state/JobDataContext'
 import { Chip } from '../../components/Chip'
+import type { SummaryFilter } from '../../types/job'
 
 export default function Summary() {
-  const { applications, summary, updateSummary } = useJobData()
+  const { summary, summaryEntries, updateSummary } = useJobData()
   const [copied, setCopied] = useState(false)
 
   const publicUrl = `https://takt-y.github.io/prototypes/#/job/summary/public/${summary.linkToken}`
@@ -63,18 +64,19 @@ export default function Summary() {
           </div>
 
           <label className="mt-4 flex flex-col text-xs text-slate-500 dark:text-slate-400">
-            Expires on
-            <input
-              type="date"
-              value={summary.expiresAt}
-              onChange={(event) => updateSummary({ expiresAt: event.target.value })}
+            Applications to include
+            <select
+              value={summary.filter}
+              onChange={(event) => updateSummary({ filter: event.target.value as SummaryFilter })}
               className="mt-1 w-48 rounded-md border border-slate-300 px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-800"
-            />
+            >
+              <option value="all">All applications</option>
+              <option value="offers">Only offers</option>
+            </select>
           </label>
 
           <div className="mt-5 flex items-center gap-2">
             <Chip tone={isLive ? 'green' : 'slate'}>{isLive ? 'Live' : 'Revoked'}</Chip>
-            <span className="text-xs text-slate-400">Expires {summary.expiresAt}</span>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -115,24 +117,19 @@ export default function Summary() {
               <p className="text-sm text-slate-400">This summary is not currently live.</p>
             ) : (
               <div>
-                <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
-                  A read-only page anyone with the link can see, expiring {summary.expiresAt}.
-                </p>
+                <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">A read-only page anyone with the link can see.</p>
                 <ul className="flex flex-col gap-2">
-                  {applications.map((app) => (
-                    <li key={app.id} className="rounded-md bg-slate-50 px-3 py-2 text-sm dark:bg-slate-800">
+                  {summaryEntries.map((entry, index) => (
+                    <li key={index} className="rounded-md bg-slate-50 px-3 py-2 text-sm dark:bg-slate-800">
                       <p className="font-medium text-slate-800 dark:text-slate-100">
-                        {app.role}
-                        {summary.includeCompanies ? ` @ ${app.companyName}` : ''}
+                        {entry.role}
+                        {entry.companyName ? ` @ ${entry.companyName}` : ''}
                       </p>
-                      {summary.includeStates ? (
-                        <p className="text-xs text-slate-500 dark:text-slate-400">State: {app.state}</p>
-                      ) : null}
-                      {summary.includeNotes && app.notes ? (
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{app.notes}</p>
-                      ) : null}
+                      {entry.stateLabel ? <p className="text-xs text-slate-500 dark:text-slate-400">State: {entry.stateLabel}</p> : null}
+                      {entry.notes ? <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{entry.notes}</p> : null}
                     </li>
                   ))}
+                  {summaryEntries.length === 0 ? <p className="text-sm text-slate-400">No applications match this filter.</p> : null}
                 </ul>
               </div>
             )}

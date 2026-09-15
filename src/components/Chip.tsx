@@ -11,9 +11,9 @@ const TONES = {
 
 export type ChipTone = keyof typeof TONES
 
-export function Chip({ tone = 'slate', children }: { tone?: ChipTone; children: ReactNode }) {
+export function Chip({ tone = 'slate', title, children }: { tone?: ChipTone; title?: string; children: ReactNode }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${TONES[tone]}`}>
+    <span title={title} className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${TONES[tone]}`}>
       {children}
     </span>
   )

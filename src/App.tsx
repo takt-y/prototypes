@@ -10,6 +10,7 @@ import Applications from './pages/job/Applications'
 import ApplicationDetail from './pages/job/ApplicationDetail'
 import CompanyDetail from './pages/job/CompanyDetail'
 import Summary from './pages/job/Summary'
+import PublicSummary from './pages/job/PublicSummary'
 
 export default function App() {
   return (
@@ -32,6 +33,8 @@ export default function App() {
           <Route path="companies/:id" element={<CompanyDetail />} />
           <Route path="summary" element={<Summary />} />
         </Route>
+
+        <Route path="/job/summary/public/:token" element={<PublicSummary />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
